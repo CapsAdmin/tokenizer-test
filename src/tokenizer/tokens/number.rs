@@ -14,12 +14,12 @@ impl Token {
 }
 
 impl TokenModel for Token {
-    fn name(&self) -> String {
-        return String::from("number");
+    fn name(&self) -> &str {
+        return "number";
     }
-    fn capture(&self, tk: &Tokenizer) -> bool {
+    fn capture(&self, tk: &Tokenizer) -> CaptureResult {
         if !syntax::is_number(tk.get_char()) && !(tk.get_char() == '.' && syntax::is_number(tk.get_char_offset(1))) {
-            return false;
+            return Ok(false);
         }
 
         if tk.get_char() == '0' {
@@ -36,27 +36,12 @@ impl TokenModel for Token {
             }
         }
 
-        return match self.capture_number(tk) {
-            Ok(b) => b,
-            Err(e) => { println!("{}",e.msg); return false; }
-        }
-    }
-}
-
-struct TokenizerError {
-    msg: String,
-    start: usize,
-    stop: usize,
-}
-
-fn tokenizer_error(msg: String, start: usize, stop: usize) -> TokenizerError {
-    TokenizerError {
-        msg, start, stop
+        return self.capture_number(tk);
     }
 }
 
 impl Token {
-    fn capture_number(&self, tk: &Tokenizer) -> Result<bool, TokenizerError> {
+    fn capture_number(&self, tk: &Tokenizer) -> CaptureResult {
         for _ in tk.iterate() {
             let c = tk.get_char();
 
@@ -77,13 +62,13 @@ impl Token {
             } else if syntax::is_space(c) {
                 return Ok(true);
             } else {
-                panic!(tokenizer_error(format!("unexpected character in number"), tk.get_pos(), tk.get_pos() + 1));
+                return Err(tokenizer_error(format!("unexpected character in number"), tk.get_pos(), tk.get_pos() + 1));
             }
         }
         return Ok(true);
     }
 
-    fn capture_binary(&self, tk: &Tokenizer) -> bool {
+    fn capture_binary(&self, tk: &Tokenizer) -> CaptureResult {
         tk.advance(2);
         
         for _ in tk.iterate() {
@@ -97,17 +82,16 @@ impl Token {
             if c == '1' || c == '0' {
                 tk.advance(1);
             } else if syntax::is_space(c) {
-                return true;
+                return Ok(true);
             } else {
-                tk.push_error("unexpected character in binary number", tk.get_pos(), tk.get_pos() + 1);
-                return false;
+                return Err(tokenizer_error(format!("unexpected character in binary number"), tk.get_pos(), tk.get_pos() + 1));
             }
         }
 
-        return true;
+        return Ok(true);
     }
 
-    fn capture_octal(&self, tk: &Tokenizer) -> bool {
+    fn capture_octal(&self, tk: &Tokenizer) -> CaptureResult {
         tk.advance(2);
         
         for _ in tk.iterate() {
@@ -121,17 +105,16 @@ impl Token {
             if syntax::is_number_within_range(c as u8, 0, 7) {
                 tk.advance(1);
             } else if syntax::is_space(c) {
-                return true;
+                return Ok(true);
             } else {
-                tk.push_error("unexpected character in octal number", tk.get_pos(), tk.get_pos() + 1);
-                return false;
+                return Err(tokenizer_error(format!("unexpected character in octal number"), tk.get_pos(), tk.get_pos() + 1));
             }
         }
 
-        return true;
+        return Ok(true);
     }
 
-    fn capture_hex(&self, tk: &Tokenizer) -> bool {
+    fn capture_hex(&self, tk: &Tokenizer) -> CaptureResult {
         tk.advance(2);
         
         for _ in tk.iterate() {
@@ -153,13 +136,12 @@ impl Token {
             {
                 tk.advance(1);
             } else if syntax::is_space(c) {
-                return true;
+                return Ok(true);
             } else {
-                tk.push_error("unexpected character in hex number", tk.get_pos(), tk.get_pos() + 1);
-                return false;
+                return Err(tokenizer_error(format!("unexpected character in hex number"), tk.get_pos(), tk.get_pos() + 1));
             }
         }
 
-        return true;
+        return Ok(true);
     }
 }

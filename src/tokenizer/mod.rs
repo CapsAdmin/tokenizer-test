@@ -3,7 +3,6 @@
 pub mod syntax;
 
 use std::cell::Cell;
-use std::string::String;
 
 pub mod tokens;
 
@@ -18,18 +17,36 @@ fn register_tokens(mut list: Vec<Box<TokenModel>>) -> Vec<Box<TokenModel>> {
     return list;
 }
 
-pub trait TokenModel {
-    fn capture(&self, tk: &Tokenizer) -> bool;
-    fn name(&self) -> String;
+pub struct TokenizerError {
+    msg: String,
+    start: usize,
+    stop: usize,
 }
 
-pub struct CapturedToken {
+pub fn tokenizer_error(msg: String, start: usize, stop: usize) -> TokenizerError {
+    TokenizerError {
+        msg, start, stop
+    }
+}
+
+pub type CaptureResult = Result<bool, TokenizerError>;
+
+pub trait TokenModel {
+    fn capture(&self, tk: &Tokenizer) -> CaptureResult;
+    fn name(&self) -> &str;
+}
+
+pub struct CapturedToken<'a> {
     pub start: u64,
     pub stop: u64,
+    pub type_name: &'a str,
 }
-impl CapturedToken {
-    pub fn new(start: u64, stop: u64) -> CapturedToken {
-        CapturedToken { start, stop }
+impl<'a> CapturedToken<'a> {
+    pub fn new(start: u64, mut stop: u64, type_name: &str) -> CapturedToken {
+        if start == stop {
+            stop += 1;
+        }
+        CapturedToken { start, stop, type_name }
     }
 }
 
@@ -47,72 +64,119 @@ impl<'a> Tokenizer<'a> {
             tokens: register_tokens(Vec::new()),
         }
     }
-    pub fn read_all(&self) {
+    pub fn read_all(&self) -> Vec<CapturedToken> {
+        let mut captured: Vec<CapturedToken> = vec!();
+
         for _ in self.iterate() {
             let mut found = false;
             
             for tk in &self.tokens {
-                let pos = self.pos.get();
-                if tk.capture(&self) {
-                    let token = CapturedToken::new(pos as u64, self.pos.get() as u64);  
-                    println!("{}⸢{}⸥", tk.name(), self.code[(token.start as usize) .. (token.stop as usize)].to_string()); 
-                    found = true;
+                let pos = self.get_pos();
+                match tk.capture(&self) {
+                    Ok(b) => {
+                        if b {
+                            let token = CapturedToken::new(pos as u64, self.get_pos() as u64, tk.name());
+                            captured.push(token);
+                            found = true;
+                        }
+                    }
+                    Err(e) => {
+                        println!("!!{}: ⸢{}⸥", e.msg, self.get_chars(e.start as usize, e.stop as usize));
+                    }
                 }
             }
 
             if !found {
-                println!("unhandled character {}\n", self.get_char());
+                println!("unhandled character ⸢{}⸥\n", self.get_char());
                 self.advance(1);
             }
 
             if self.the_end() {
-                break
+                break;
             }
         }
+
+        return captured;
     }
     pub fn get_char(&self) -> char {
-        return self.code.char_indices().nth(self.pos.get()).unwrap().1;
+        if self.get_pos() >= self.length() {
+            return self.code.char_indices().last().unwrap().1;
+        }
+        return self.code.char_indices().nth(self.get_pos()).unwrap().1;
     }
     pub fn get_char_offset(&self, offset: isize) -> char {
-        return self.code.char_indices().nth(self.pos.get() + (offset as usize)).unwrap().1;
+        return self.code.char_indices().nth(self.get_pos() + (offset as usize)).unwrap().1;
     }
     pub fn iterate(&self) -> std::ops::Range<usize> {
-        self.pos.get()..self.code.char_indices().count()-1
+        self.get_pos()..self.length()
     }
     pub fn advance(&self, num: isize) {
         let pos = if num < 0 {
-            self.code.char_indices().nth(self.pos.get() - num as usize)
+            self.code.char_indices().nth(self.get_pos() - num as usize)
         } else {
-            self.code.char_indices().nth(self.pos.get() + num as usize)
+            self.code.char_indices().nth(self.get_pos() + num as usize)
         };
 
         if pos.is_some() {
-            return self.pos.set(pos.unwrap().0);
+            self.pos.set(pos.unwrap().0);
+        } else {
+            self.pos.set(self.length());
+            //panic!("reached end of code {}", self.get_pos() + 1);
         }
-
-        panic!("reached end of code {}", self.pos.get() + 1);
     }
 
     pub fn the_end(&self) -> bool {
-        return self.pos.get() >= self.code.char_indices().count()-1;
+        return self.get_pos() >= self.length();
     }
 
     pub fn length(&self) -> usize {
         return self.code.char_indices().count();
     }
 
-    pub fn get_chars(&self, start: usize, mut stop: usize) -> &str {
+    pub fn get_chars(&self, mut start: usize, mut stop: usize) -> &str {
         if stop > self.length() {
             stop = self.length();
+        }
+        if start > self.length() {
+            start = self.length();
         }
         return &self.code[start .. stop];
     }
  
-    pub fn push_error(&self, msg: &'static str, start: usize, stop: usize) {
-        println!("{}: {}", msg, self.get_chars(start, stop));
-    }
-
     pub fn get_pos(&self) -> usize {
         return self.pos.get();
     }
+
+    pub fn assert_types(&self, type_list: Vec<&str>) {
+        let tokens = self.read_all();
+
+        if tokens.len() != type_list.len() {
+            panic!("token list is not the same as type list");
+        }
+            
+
+        let mut i = 0;
+        for t in tokens {
+            if t.type_name != type_list[i] {
+                panic!("fail!")
+            }
+            i += 1;
+        }
+    }
+
+    /*pub fn assert_values(&self, list: Vec<&str>) {
+        let tokens = self.read_all();
+
+        if (tokens.len() != list.len()) {
+            panic!("token list is not the same as type list");
+        }
+            
+        let mut i = 0;
+        for t in tokens {
+            if t.value != list[i] {
+                panic!("fail!")
+            }
+            i += 1;
+        }
+    }*/
 }

@@ -1,24 +1,23 @@
-use std::string::String;
 use crate::tokenizer::*;
 
 pub struct Token;
 impl TokenModel for Token {
-    fn name(&self) -> String {
-        return String::from("space");
+    fn name(&self) -> &str {
+        return "space";
     }
-    fn capture(&self, tk: &Tokenizer) -> bool {
+    fn capture(&self, tk: &Tokenizer) -> CaptureResult {
         if !syntax::is_space(tk.get_char()) {
-            return false;
+            return Ok(false);
         }
 
         for _ in tk.iterate() {
             tk.advance(1);
-            
+   
             if !syntax::is_space(tk.get_char()) {
-                return true;
+                return Ok(true);
             }
         }
 
-        return false;
+        return Ok(true);
     }
 }

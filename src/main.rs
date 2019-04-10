@@ -2,9 +2,17 @@ mod tokenizer;
 use tokenizer::Tokenizer;
 
 fn main() {
-    let tk = Tokenizer::new("test123 0b10101 function 0xdeadbeef 0o21312 dawdw 0.0.2  
-    
-    d ad wasd ");
+    let tk = Tokenizer::new("function ");
 
-    tk.read_all();
+    for token in tk.read_all() {
+        println!("{}⸢{}⸥", token.type_name, tk.get_chars(token.start as usize, token.stop as usize));
+    }
+
+    
+    Tokenizer::new("  \na\ndawd").assert_types(vec!["space", "identifier", "space", "identifier"]);
+    //Tokenizer::new("  \na\ndawd1").assert_values(vec!["   \n", "a", "\n", "dawd1"]);
+
+    if Tokenizer::new("function ").read_all()[1].type_name == "space" {
+        println!("OK!");
+    }
 }

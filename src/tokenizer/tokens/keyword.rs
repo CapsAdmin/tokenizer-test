@@ -1,4 +1,3 @@
-use std::string::String;
 use crate::tokenizer::*;
 
 pub struct Token<'a> {
@@ -27,17 +26,17 @@ impl<'a> Token<'a> {
     }
 }
 impl<'a> TokenModel for Token<'a> {
-    fn name(&self) -> String {
-        return String::from("keyword");
+    fn name(&self) -> &str {
+        return "keyword";
     }
-    fn capture(&self, tk: &Tokenizer) -> bool {
+    fn capture(&self, tk: &Tokenizer) -> CaptureResult {
         for &keyword in &self.array {
             if keyword == tk.get_chars(tk.get_pos(), tk.get_pos() + keyword.char_indices().count()) {
                 tk.advance(keyword.char_indices().count() as isize);
-                return true;
+                return Ok(true);
             }
         }
 
-        return false;
+        return Ok(false);
     }
 }
