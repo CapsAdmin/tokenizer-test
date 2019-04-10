@@ -1,6 +1,8 @@
 use std::cell::Cell;
 use std::string::String;
 
+pub mod syntax;
+
 mod tokens;
 use tokens::*;
 
@@ -29,8 +31,8 @@ impl<'a> Tokenizer<'a> {
     pub fn new(code: &str) -> Tokenizer {
         let mut classes: Vec<Box<TokenModel>> = Vec::new();
 
-        classes.push(Box::new(tokens::space::Identifier));
-        classes.push(Box::new(tokens::identifier::Identifier));
+        classes.push(Box::new(space::Space));
+        classes.push(Box::new(identifier::Identifier));
 
         Tokenizer {
             pos: Cell::new(0),

@@ -1,6 +1,5 @@
 use std::string::String;
-use tokenizer:: { Tokenizer, TokenModel };
-use syntax::*;
+use crate::tokenizer::{ Tokenizer, TokenModel, syntax };
 
 pub struct Space;
 impl TokenModel for Space {

@@ -1,7 +1,8 @@
 mod tokenizer;
+use tokenizer::Tokenizer;
 
 fn main() {
-    let tk = tokenizer::Tokenizer::new("test123   dawdw  d ad w");
+    let tk = Tokenizer::new("test123   dawdw  d ad w");
 
     tk.read_all();
 }
