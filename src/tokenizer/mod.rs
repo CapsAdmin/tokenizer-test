@@ -1,10 +1,22 @@
-use std::cell::Cell;
-use std::string::String;
+#[macro_use]
 
 pub mod syntax;
 
-mod tokens;
-use tokens::*;
+use std::cell::Cell;
+use std::string::String;
+
+pub mod tokens;
+
+fn register_tokens(mut list: Vec<Box<TokenModel>>) -> Vec<Box<TokenModel>> {
+    use tokens::*;
+
+    list.push(Box::new(space::Token));
+    list.push(Box::new(keyword::Token::new()));
+    list.push(Box::new(identifier::Token));
+    list.push(Box::new(number::Token::new()));
+
+    return list;
+}
 
 pub trait TokenModel {
     fn capture(&self, tk: &Tokenizer) -> bool;
@@ -24,27 +36,22 @@ impl CapturedToken {
 pub struct Tokenizer<'a> {
     pos: Cell<usize>,
     code: &'a str,
-    token_classes: Vec<Box<TokenModel>>,
+    tokens: Vec<Box<TokenModel>>,
 }
 
 impl<'a> Tokenizer<'a> {
     pub fn new(code: &str) -> Tokenizer {
-        let mut classes: Vec<Box<TokenModel>> = Vec::new();
-
-        classes.push(Box::new(space::Space));
-        classes.push(Box::new(identifier::Identifier));
-
         Tokenizer {
             pos: Cell::new(0),
             code: code,
-            token_classes: classes,
+            tokens: register_tokens(Vec::new()),
         }
     }
     pub fn read_all(&self) {
         for _ in self.iterate() {
             let mut found = false;
             
-            for tk in &self.token_classes {
+            for tk in &self.tokens {
                 let pos = self.pos.get();
                 if tk.capture(&self) {
                     let token = CapturedToken::new(pos as u64, self.pos.get() as u64);  
@@ -87,6 +94,25 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn the_end(&self) -> bool {
-        self.pos.get() >= self.code.char_indices().count()-1
+        return self.pos.get() >= self.code.char_indices().count()-1;
+    }
+
+    pub fn length(&self) -> usize {
+        return self.code.char_indices().count();
+    }
+
+    pub fn get_chars(&self, start: usize, mut stop: usize) -> &str {
+        if stop > self.length() {
+            stop = self.length();
+        }
+        return &self.code[start .. stop];
+    }
+ 
+    pub fn push_error(&self, msg: &'static str, start: usize, stop: usize) {
+        println!("{}: {}", msg, self.get_chars(start, stop));
+    }
+
+    pub fn get_pos(&self) -> usize {
+        return self.pos.get();
     }
 }

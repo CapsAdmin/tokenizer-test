@@ -1,8 +1,8 @@
 use std::string::String;
-use crate::tokenizer::{ Tokenizer, TokenModel, syntax };
+use crate::tokenizer::*;
 
-pub struct Space;
-impl TokenModel for Space {
+pub struct Token;
+impl TokenModel for Token {
     fn name(&self) -> String {
         return String::from("space");
     }
